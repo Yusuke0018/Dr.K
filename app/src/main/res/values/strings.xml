@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Dr.K</string>
+    <string name="notification_channel_tracking">Tracking</string>
+    <string name="notification_tracking_title">Dr.Kが距離と時間を計測中</string>
+    <string name="notification_tracking_text">計測はバックグラウンドで継続されます</string>
+    <string name="start">開始</string>
+    <string name="stop">終了</string>
+    <string name="request_permission">権限を許可</string>
+</resources>
+
