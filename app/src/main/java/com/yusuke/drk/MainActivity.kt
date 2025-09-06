@@ -17,11 +17,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Polyline
+import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.android.gms.maps.model.LatLng
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
@@ -85,6 +92,18 @@ private fun MainScreen(
 ) {
     var granted by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { granted = hasPermission() }
+    val vm: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val points by vm.observeCurrentTrackPoints().collectAsState(initial = emptyList())
+    val poly = remember(points) {
+        points.map { LatLng(it.lat, it.lon) }
+    }
+    val lastLatLng = poly.lastOrNull()
+    val cameraState = rememberCameraPositionState()
+    LaunchedEffect(lastLatLng) {
+        lastLatLng?.let { ll ->
+            cameraState.move(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(ll, 16f))
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -103,5 +122,46 @@ private fun MainScreen(
         }
         Button(onClick = onStart, enabled = granted && !ui.isTracking) { Text(text = "開始") }
         Button(onClick = onStop, enabled = ui.isTracking) { Text(text = "終了") }
+        if (granted) {
+            androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize().weight(1f)) {
+                GoogleMap(
+                    modifier = Modifier.fillMaxSize(),
+                    uiSettings = MapUiSettings(zoomControlsEnabled = false),
+                    cameraPositionState = cameraState
+                ) {
+                    if (poly.size >= 2) {
+                        Polyline(points = poly)
+                    }
+                }
+            }
+        }
+    }
+
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.rememberLottieComposition
+import com.yusuke.drk.data.TrackingRepository
+    // リザルト表示（停止後）
+    var result by remember { mutableStateOf<TrackingRepository.ResultEvent?>(null) }
+    LaunchedEffect(Unit) {
+        TrackingRepository.results.collect { evt -> result = evt }
+    }
+    result?.let { evt ->
+        AlertDialog(
+            onDismissRequest = { result = null },
+            title = { Text("リザルト") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val comp by rememberLottieComposition(LottieCompositionSpec.RawRes(if (evt.levelUp) R.raw.level_up else R.raw.title_unlocked))
+                    LottieAnimation(composition = comp)
+                    Text("獲得XP: ${evt.earnedXp}")
+                    if (evt.levelUp) Text("レベルアップ！")
+                    if (evt.newTitles.isNotEmpty()) Text("称号獲得: ${evt.newTitles.joinToString()}")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { result = null }) { Text("OK") }
+            }
+        )
     }
 }
