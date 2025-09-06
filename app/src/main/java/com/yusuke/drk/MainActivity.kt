@@ -33,6 +33,7 @@ import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.yusuke.drk.data.TrackingRepository
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
@@ -124,8 +125,14 @@ private fun MainScreen(
                 granted = hasPermission()
             }) { Text(text = "権限を許可") }
         }
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val miles by com.yusuke.drk.data.SettingsRepository.unitMiles(context).collectAsState(initial = false)
         Button(onClick = onStart, enabled = granted && !ui.isTracking) { Text(text = "開始") }
         Button(onClick = onStop, enabled = ui.isTracking) { Text(text = "終了") }
+        val scope = rememberCoroutineScope()
+        Button(onClick = { scope.launch { com.yusuke.drk.data.SettingsRepository.setUnitMiles(context, !miles) } }) {
+            Text(text = "単位: ${if (miles) "mi" else "km"}")
+        }
         if (granted) {
             androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize().weight(1f)) {
                 GoogleMap(
