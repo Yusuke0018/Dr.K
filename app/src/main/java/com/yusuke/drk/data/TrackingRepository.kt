@@ -48,6 +48,22 @@ object TrackingRepository {
         val now = System.currentTimeMillis()
         scope.launch {
             val db = DrkDatabase.get(context)
+            // 初期データの投入（初回のみ）
+            val defs = db.titleDefDao().all()
+            if (defs.isEmpty()) {
+                db.titleDefDao().insertAll(
+                    listOf(
+                        TitleDef("FIRST_1KM", "はじめの1km", "SESSION_DISTANCE", 1000),
+                        TitleDef("CUM_100KM", "累積100km", "CUM_DISTANCE", 100_000),
+                        TitleDef("STREAK_7", "7日連続", "STREAK", 7)
+                    )
+                )
+            }
+            if (db.playerStateDao().get() == null) {
+                db.playerStateDao().upsert(
+                    PlayerState(totalXp = 0, level = 1, nextLevelXp = 100, titlesCsv = "", streakDays = 0, lastActiveDate = null)
+                )
+            }
             val sessionId = db.sessionDao().insert(Session(startAtMs = now))
             currentSessionId = sessionId
             lastLat = null

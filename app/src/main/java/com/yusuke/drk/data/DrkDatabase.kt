@@ -30,27 +30,6 @@ abstract class DrkDatabase : RoomDatabase() {
                 "drk.db"
             )
                 .fallbackToDestructiveMigration()
-                .addCallback(object : Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        // プリセット称号投入
-                        val scope = CoroutineScope(Dispatchers.IO)
-                        scope.launch {
-                            val instance = get(context)
-                            instance.titleDefDao().insertAll(
-                                listOf(
-                                    TitleDef("FIRST_1KM", "はじめの1km", "SESSION_DISTANCE", 1000),
-                                    TitleDef("CUM_100KM", "累積100km", "CUM_DISTANCE", 100_000),
-                                    TitleDef("STREAK_7", "7日連続", "STREAK", 7)
-                                )
-                            )
-                            // 初期PlayerState
-                            instance.playerStateDao().upsert(
-                                PlayerState(totalXp = 0, level = 1, nextLevelXp = 100, titlesCsv = "", streakDays = 0, lastActiveDate = null)
-                            )
-                        }
-                    }
-                })
                 .build().also { INSTANCE = it }
         }
     }
