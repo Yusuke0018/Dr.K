@@ -29,6 +29,10 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.android.gms.maps.model.LatLng
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.rememberLottieComposition
+import com.yusuke.drk.data.TrackingRepository
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
@@ -111,7 +115,7 @@ private fun MainScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(text = "Dr.K 計測中間実装（距離/時間/ペース）")
-        Text(text = "距離: ${ui.distanceKmText} km")
+        Text(text = "距離: ${ui.distanceKmText}")
         Text(text = "時間: ${ui.elapsedText}")
         Text(text = "平均ペース: ${ui.paceText}")
         if (!granted) {
@@ -136,11 +140,6 @@ private fun MainScreen(
             }
         }
     }
-
-import com.airbnb.lottie.compose.LottieAnimation
-import com.airbnb.lottie.compose.LottieCompositionSpec
-import com.airbnb.lottie.compose.rememberLottieComposition
-import com.yusuke.drk.data.TrackingRepository
     // リザルト表示（停止後）
     var result by remember { mutableStateOf<TrackingRepository.ResultEvent?>(null) }
     LaunchedEffect(Unit) {
@@ -164,4 +163,69 @@ import com.yusuke.drk.data.TrackingRepository
             }
         )
     }
+
+    // 補助モーダル: カレンダー（直近30日）
+    var showCalendar by remember { mutableStateOf(false) }
+    var showTitles by remember { mutableStateOf(false) }
+    // 画面下に簡易ボタン追加
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier.padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Button(onClick = { showCalendar = true }) { Text("カレンダー") }
+        Button(onClick = { showTitles = true }) { Text("称号/プロフィール") }
+    }
+
+    if (showCalendar) {
+        val today = java.time.LocalDate.now()
+        val from = today.minusDays(29).toString()
+        val to = today.toString()
+        val stats by vm.observeDailyRange(from, to).collectAsState(initial = emptyList())
+        AlertDialog(
+            onDismissRequest = { showCalendar = false },
+            title = { Text("直近30日の合計") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    stats.forEach { s ->
+                        val km = s.totalDistanceM / 1000.0
+                        Text("${s.date}: 距離 ${String.format("%.2f", km)} km / 時間 ${formatHmsStatic(s.totalDurationS)}")
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showCalendar = false }) { Text("閉じる") } }
+        )
+    }
+
+    if (showTitles) {
+        val ps by produceState<com.yusuke.drk.data.PlayerState?>(initialValue = null, showTitles) {
+            value = vm.getPlayerState()
+        }
+        val defs by produceState<List<com.yusuke.drk.data.TitleDef>>(initialValue = emptyList(), showTitles) {
+            value = vm.getTitleDefs()
+        }
+        val owned = ps?.titlesCsv?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+        AlertDialog(
+            onDismissRequest = { showTitles = false },
+            title = { Text("称号/プロフィール") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("レベル: ${ps?.level ?: 1}  XP: ${ps?.totalXp ?: 0}/${ps?.nextLevelXp ?: 100}")
+                    Text("連続日数: ${ps?.streakDays ?: 0}")
+                    Text("称号")
+                    defs.forEach { d ->
+                        val mark = if (owned.contains(d.key)) "✅" else "⬜"
+                        Text("$mark ${d.name}")
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showTitles = false }) { Text("閉じる") } }
+        )
+    }
+}
+
+private fun formatHmsStatic(sec: Long): String {
+    val h = sec / 3600
+    val m = (sec % 3600) / 60
+    val s = sec % 60
+    return String.format("%02d:%02d:%02d", h, m, s)
 }
