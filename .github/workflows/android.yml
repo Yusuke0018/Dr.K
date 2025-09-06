@@ -40,6 +40,9 @@ jobs:
             rm -f gradle-8.7-bin.zip
           fi
 
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
         working-directory: ./
@@ -49,9 +52,9 @@ jobs:
         shell: bash
         run: |
           set -e
-          if [ -x ./gradlew ]; then EXE=./gradlew; else EXE=./gradle-8.7/bin/gradle; fi
-          "$EXE" --version
-          "$EXE" assembleDebug --stacktrace
+          chmod +x gradlew
+          ./gradlew --version
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
