@@ -11,6 +11,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.*
+import com.yusuke.drk.data.TrackingRepository
 import kotlin.math.*
 
 class DrKTrackingService : Service() {
@@ -47,6 +48,7 @@ class DrKTrackingService : Service() {
         startMs = System.currentTimeMillis()
         totalDistanceM = 0.0
         lastLocation = null
+        TrackingRepository.start(applicationContext)
         isTracking = true
 
         val notification = NotificationHelper.buildTrackingNotification(this)
@@ -72,6 +74,7 @@ class DrKTrackingService : Service() {
         callback?.let { fused.removeLocationUpdates(it) }
         callback = null
         stopForeground(STOP_FOREGROUND_REMOVE)
+        TrackingRepository.stop(applicationContext)
         stopSelf()
     }
 
@@ -94,6 +97,7 @@ class DrKTrackingService : Service() {
                 totalDistanceM += d
             }
         }
+        TrackingRepository.onLocation(applicationContext, loc)
     }
 
     private fun updateNotification() {

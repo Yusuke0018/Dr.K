@@ -8,6 +8,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
+    private val vm: MainViewModel by viewModels()
     private val locationPermissions = buildList {
         add(Manifest.permission.ACCESS_FINE_LOCATION)
         add(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -40,10 +42,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    val ui by vm.ui.collectAsState()
                     MainScreen(
+                        ui = ui,
                         onRequestPermission = { permissionLauncher.launch(locationPermissions) },
-                        onStart = { startTracking() },
-                        onStop = { stopTracking() },
+                        onStart = { startTracking(); vm.start() },
+                        onStop = { stopTracking(); vm.stop() },
                         hasPermission = { hasLocationPermission() }
                     )
                 }
@@ -73,6 +77,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun MainScreen(
+    ui: UiState,
     onRequestPermission: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -86,15 +91,17 @@ private fun MainScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Dr.K 初期実装（計測サービス雛形）")
+        Text(text = "Dr.K 計測中間実装（距離/時間/ペース）")
+        Text(text = "距離: ${ui.distanceKmText} km")
+        Text(text = "時間: ${ui.elapsedText}")
+        Text(text = "平均ペース: ${ui.paceText}")
         if (!granted) {
             Button(onClick = {
                 onRequestPermission()
                 granted = hasPermission()
             }) { Text(text = "権限を許可") }
         }
-        Button(onClick = onStart, enabled = granted) { Text(text = "開始") }
-        Button(onClick = onStop) { Text(text = "終了") }
+        Button(onClick = onStart, enabled = granted && !ui.isTracking) { Text(text = "開始") }
+        Button(onClick = onStop, enabled = ui.isTracking) { Text(text = "終了") }
     }
 }
-
